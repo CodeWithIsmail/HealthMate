@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/capture_provider.dart';
 import '../../providers/report_provider.dart';
+import '../../providers/trends_provider.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/signup_screen.dart';
 import '../../screens/capture/capture_screen.dart';
@@ -14,6 +15,7 @@ import '../../screens/reports/report_detail_screen.dart';
 import '../../screens/reports/reports_screen.dart';
 import '../../screens/shell/app_shell.dart';
 import '../../screens/splash_screen.dart';
+import '../../screens/trends/trends_screen.dart';
 import '../app_dependencies.dart';
 
 GoRouter buildRouter(AuthProvider auth) {
@@ -83,8 +85,12 @@ GoRouter buildRouter(AuthProvider auth) {
             routes: [
               GoRoute(
                 path: '/trends',
-                builder: (context, state) =>
-                    const PlaceholderScreen(title: 'Trends', icon: Icons.show_chart),
+                // Scoped per-route for the same reason as /reports above.
+                builder: (context, state) => ChangeNotifierProvider(
+                  create: (context) =>
+                      TrendsProvider(trendsRepository: context.read<AppDependencies>().trendsRepository),
+                  child: TrendsScreen(username: state.uri.queryParameters['username']),
+                ),
               ),
             ],
           ),

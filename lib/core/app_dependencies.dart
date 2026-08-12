@@ -5,6 +5,7 @@ import '../repositories/connections_repository.dart';
 import '../repositories/news_repository.dart';
 import '../repositories/report_repository.dart';
 import '../repositories/tests_repository.dart';
+import '../repositories/trends_repository.dart';
 import '../repositories/user_repository.dart';
 
 /// Wires the singletons (API client, token storage, repositories) used
@@ -24,6 +25,7 @@ class AppDependencies {
       newsRepository: NewsRepository(apiClient: apiClient),
       connectionsRepository: ConnectionsRepository(apiClient: apiClient),
       testsRepository: TestsRepository(apiClient: apiClient),
+      trendsRepository: TrendsRepository(apiClient: apiClient),
     );
   }
 
@@ -36,6 +38,7 @@ class AppDependencies {
     required this.newsRepository,
     required this.connectionsRepository,
     required this.testsRepository,
+    required this.trendsRepository,
   });
 
   final TokenStorage tokenStorage;
@@ -46,4 +49,5 @@ class AppDependencies {
   final NewsRepository newsRepository;
   final ConnectionsRepository connectionsRepository;
   final TestsRepository testsRepository;
+  final TrendsRepository trendsRepository;
 }
