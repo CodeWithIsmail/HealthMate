@@ -3,9 +3,11 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
+import '../../providers/capture_provider.dart';
 import '../../providers/report_provider.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/signup_screen.dart';
+import '../../screens/capture/capture_screen.dart';
 import '../../screens/dashboard/dashboard_screen.dart';
 import '../../screens/placeholder_screen.dart';
 import '../../screens/reports/report_detail_screen.dart';
@@ -41,8 +43,13 @@ GoRouter buildRouter(AuthProvider auth) {
       GoRoute(path: '/signup', builder: (context, state) => const SignupScreen()),
       GoRoute(
         path: '/capture',
-        builder: (context, state) =>
-            const PlaceholderScreen(title: 'Add a report', icon: Icons.add_a_photo_outlined),
+        builder: (context, state) => ChangeNotifierProvider(
+          create: (context) => CaptureProvider(
+            reportRepository: context.read<AppDependencies>().reportRepository,
+            testsRepository: context.read<AppDependencies>().testsRepository,
+          ),
+          child: const CaptureScreen(),
+        ),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) => AppShell(navigationShell: navigationShell),
