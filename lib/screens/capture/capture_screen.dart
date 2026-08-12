@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/catalogue_test.dart';
 import '../../providers/capture_provider.dart';
+import '../../widgets/bilingual_summary.dart';
 import '../../widgets/status_pill.dart';
 
 const _maxUploadBytes = 10 * 1024 * 1024;
@@ -470,12 +471,11 @@ class _AnalysisCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (provider.busy == 'analyze' && provider.analysis == null)
-              const Text('Reading your report…')
-            else if (provider.analysis != null)
-              MarkdownBody(data: provider.analysis!)
-            else
-              const Text('No analysis available.'),
+            BilingualSummary(
+              textEn: provider.analysisEn,
+              textBn: provider.analysisBn,
+              loading: provider.busy == 'analyze',
+            ),
             ...provider.chat.map(
               (turn) => Align(
                 alignment: turn.role == 'user' ? Alignment.centerRight : Alignment.centerLeft,

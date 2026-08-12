@@ -1,6 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -9,6 +8,7 @@ import '../../core/app_dependencies.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/report.dart';
 import '../../widgets/app_avatar.dart';
+import '../../widgets/bilingual_summary.dart';
 import '../../widgets/error_view.dart';
 import '../../widgets/loading_view.dart';
 import '../../widgets/status_pill.dart';
@@ -177,7 +177,8 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                   ],
                 ),
               ),
-              if (report.summary != null && report.summary!.isNotEmpty) ...[
+              if ((report.summary != null && report.summary!.isNotEmpty) ||
+                  (report.summaryBn != null && report.summaryBn!.isNotEmpty)) ...[
                 const SizedBox(height: 16),
                 Card(
                   child: Padding(
@@ -187,7 +188,7 @@ class _ReportDetailScreenState extends State<ReportDetailScreen> {
                       children: [
                         Text('Analysis', style: Theme.of(context).textTheme.titleMedium),
                         const SizedBox(height: 8),
-                        MarkdownBody(data: report.summary!),
+                        BilingualSummary(textEn: report.summary, textBn: report.summaryBn),
                       ],
                     ),
                   ),

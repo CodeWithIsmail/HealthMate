@@ -71,16 +71,22 @@ class ExtractionResponse {
   );
 }
 
+/// Same clinical analysis in both languages, generated together in one
+/// Gemini call so they can't drift apart — see `ANALYSIS_PROMPT` on the API.
 class AnalyzeResponse {
-  const AnalyzeResponse({required this.text, required this.provider});
+  const AnalyzeResponse({required this.textEn, required this.textBn, required this.provider});
 
-  final String text;
+  final String textEn;
+  final String textBn;
   final String provider;
 
   bool get isStub => provider == 'stub';
 
-  factory AnalyzeResponse.fromJson(Map<String, dynamic> json) =>
-      AnalyzeResponse(text: json['text'] as String, provider: json['provider'] as String);
+  factory AnalyzeResponse.fromJson(Map<String, dynamic> json) => AnalyzeResponse(
+    textEn: json['en'] as String,
+    textBn: json['bn'] as String,
+    provider: json['provider'] as String,
+  );
 }
 
 class ChatTurn {

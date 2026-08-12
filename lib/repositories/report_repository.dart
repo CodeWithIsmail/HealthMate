@@ -28,6 +28,7 @@ class ReportRepository {
     String? title,
     String? imageUrl,
     String? summary,
+    String? summaryBn,
     required ReportSource source,
     required List<({String testId, double value})> values,
   }) async {
@@ -38,6 +39,7 @@ class ReportRepository {
         if (title != null && title.isNotEmpty) 'title': title,
         'imageUrl': ?imageUrl,
         'summary': ?summary,
+        'summaryBn': ?summaryBn,
         'source': source.apiValue,
         'values': values.map((v) => {'testId': v.testId, 'value': v.value}).toList(),
       },

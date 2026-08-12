@@ -118,6 +118,7 @@ class ReportDetail {
     this.title,
     this.imageUrl,
     this.summary,
+    this.summaryBn,
     required this.source,
     required this.createdAt,
     required this.values,
@@ -131,6 +132,7 @@ class ReportDetail {
   final String? title;
   final String? imageUrl;
   final String? summary;
+  final String? summaryBn;
   final ReportSource source;
   final DateTime createdAt;
   final List<ReportValue> values;
@@ -144,6 +146,7 @@ class ReportDetail {
     title: json['title'] as String?,
     imageUrl: json['imageUrl'] as String?,
     summary: json['summary'] as String?,
+    summaryBn: json['summaryBn'] as String?,
     source: ReportSource.fromApi(json['source'] as String),
     createdAt: DateTime.parse(json['createdAt'] as String),
     values: (json['values'] as List).map((e) => ReportValue.fromJson(e as Map<String, dynamic>)).toList(),

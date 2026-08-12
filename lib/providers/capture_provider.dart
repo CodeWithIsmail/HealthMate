@@ -56,7 +56,8 @@ class CaptureProvider extends ChangeNotifier {
   String? extractionProvider; // 'gemini' | 'stub'
   String? degradedReason;
 
-  String? analysis;
+  String? analysisEn;
+  String? analysisBn;
   String? analysisProvider;
   List<ChatTurn> chat = [];
 
@@ -137,10 +138,12 @@ class CaptureProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final res = await _reportRepo.analyze(imagePath!);
-      analysis = res.text;
+      analysisEn = res.textEn;
+      analysisBn = res.textBn;
       analysisProvider = res.provider;
     } catch (_) {
-      analysis = null;
+      analysisEn = null;
+      analysisBn = null;
     } finally {
       busy = null;
       notifyListeners();
@@ -155,8 +158,8 @@ class CaptureProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final history = [
-        if (analysis != null)
-          ChatTurn(role: 'model', text: analysis!.length > 4000 ? analysis!.substring(0, 4000) : analysis!),
+        if (analysisEn != null)
+          ChatTurn(role: 'model', text: analysisEn!.length > 4000 ? analysisEn!.substring(0, 4000) : analysisEn!),
         ...chat,
       ];
       final windowed = history.length > 20 ? history.sublist(history.length - 20) : history;
@@ -228,7 +231,8 @@ class CaptureProvider extends ChangeNotifier {
         reportDate: reportDate,
         title: title.trim().isEmpty ? null : title.trim(),
         imageUrl: uploadedImageUrl,
-        summary: analysis,
+        summary: analysisEn,
+        summaryBn: analysisBn,
         source: mode == CaptureMode.scan ? ReportSource.ocr : ReportSource.manual,
         values: values,
       );
