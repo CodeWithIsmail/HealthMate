@@ -19,17 +19,16 @@ class UserRepository {
     return json.map((e) => PersonCard.fromJson(e as Map<String, dynamic>)).toList();
   }
 
-  Future<UserProfile> updateProfile(Map<String, dynamic> fields) async {
-    final json = await _api.patch<Map<String, dynamic>>('/users/me', data: fields);
-    return UserProfile.fromJson(json);
-  }
+  /// Both `PATCH /users/me` and `POST /users/me/avatar` return only the bare
+  /// profile fields — no `stats`/`isSelf`/`age`/`bmi` — so callers refetch
+  /// via [profile] afterwards rather than trying to parse a full
+  /// [UserProfile] out of these responses.
+  Future<void> updateProfile(Map<String, dynamic> fields) =>
+      _api.patch<void>('/users/me', data: fields);
 
-  Future<UserProfile> uploadAvatar(String filePath) async {
-    final json = await _api.postMultipart<Map<String, dynamic>>(
-      '/users/me/avatar',
-      filePath: filePath,
-      fieldName: 'file',
-    );
-    return UserProfile.fromJson(json);
-  }
+  Future<void> uploadAvatar(String filePath) => _api.postMultipart<void>(
+    '/users/me/avatar',
+    filePath: filePath,
+    fieldName: 'file',
+  );
 }

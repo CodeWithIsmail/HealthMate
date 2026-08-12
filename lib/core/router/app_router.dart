@@ -1,16 +1,22 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/capture_provider.dart';
+import '../../providers/connections_provider.dart';
+import '../../providers/people_search_provider.dart';
+import '../../providers/profile_provider.dart';
 import '../../providers/report_provider.dart';
 import '../../providers/trends_provider.dart';
 import '../../screens/auth/login_screen.dart';
 import '../../screens/auth/signup_screen.dart';
 import '../../screens/capture/capture_screen.dart';
+import '../../screens/connections/connections_screen.dart';
 import '../../screens/dashboard/dashboard_screen.dart';
-import '../../screens/placeholder_screen.dart';
+import '../../screens/people/people_screen.dart';
+import '../../screens/profile/profile_edit_screen.dart';
+import '../../screens/profile/profile_qr_screen.dart';
+import '../../screens/profile/profile_screen.dart';
 import '../../screens/reports/report_detail_screen.dart';
 import '../../screens/reports/reports_screen.dart';
 import '../../screens/shell/app_shell.dart';
@@ -51,6 +57,24 @@ GoRouter buildRouter(AuthProvider auth) {
             testsRepository: context.read<AppDependencies>().testsRepository,
           ),
           child: const CaptureScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/profile/edit',
+        builder: (context, state) => ChangeNotifierProvider(
+          create: (context) => ProfileProvider(userRepository: context.read<AppDependencies>().userRepository),
+          child: const ProfileEditScreen(),
+        ),
+      ),
+      GoRoute(path: '/profile/qr', builder: (context, state) => const ProfileQrScreen()),
+      GoRoute(
+        path: '/people',
+        builder: (context, state) => ChangeNotifierProvider(
+          create: (context) => PeopleSearchProvider(
+            userRepository: context.read<AppDependencies>().userRepository,
+            connectionsRepository: context.read<AppDependencies>().connectionsRepository,
+          ),
+          child: const PeopleScreen(),
         ),
       ),
       StatefulShellRoute.indexedStack(
@@ -98,8 +122,11 @@ GoRouter buildRouter(AuthProvider auth) {
             routes: [
               GoRoute(
                 path: '/connections',
-                builder: (context, state) =>
-                    const PlaceholderScreen(title: 'Connections', icon: Icons.people_outline),
+                builder: (context, state) => ChangeNotifierProvider(
+                  create: (context) =>
+                      ConnectionsProvider(connectionsRepository: context.read<AppDependencies>().connectionsRepository),
+                  child: const ConnectionsScreen(),
+                ),
               ),
             ],
           ),
@@ -107,8 +134,10 @@ GoRouter buildRouter(AuthProvider auth) {
             routes: [
               GoRoute(
                 path: '/profile',
-                builder: (context, state) =>
-                    const PlaceholderScreen(title: 'Profile', icon: Icons.person_outline),
+                builder: (context, state) => ChangeNotifierProvider(
+                  create: (context) => ProfileProvider(userRepository: context.read<AppDependencies>().userRepository),
+                  child: ProfileScreen(username: state.uri.queryParameters['username']),
+                ),
               ),
             ],
           ),
