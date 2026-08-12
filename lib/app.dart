@@ -1,39 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
+import 'core/app_dependencies.dart';
+import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'providers/auth_provider.dart';
 
-class HealthMateApp extends StatelessWidget {
+class HealthMateApp extends StatefulWidget {
   const HealthMateApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'HealthMate',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.system,
-      // Replaced by go_router auth-gated routing in the next slice.
-      home: const _Placeholder(),
-    );
-  }
+  State<HealthMateApp> createState() => _HealthMateAppState();
 }
 
-class _Placeholder extends StatelessWidget {
-  const _Placeholder();
+class _HealthMateAppState extends State<HealthMateApp> {
+  late final AppDependencies _deps;
+  late final AuthProvider _authProvider;
+  late final GoRouter _router;
+
+  @override
+  void initState() {
+    super.initState();
+    _deps = AppDependencies();
+    _authProvider = AuthProvider(authRepository: _deps.authRepository);
+    _deps.apiClient.onUnauthorized = _authProvider.forceLogout;
+    _router = buildRouter(_authProvider);
+    _authProvider.restoreSession();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.favorite, size: 48, color: Theme.of(context).colorScheme.primary),
-            const SizedBox(height: 12),
-            Text('HealthMate', style: Theme.of(context).textTheme.headlineMedium),
-          ],
-        ),
+    return MultiProvider(
+      providers: [
+        Provider<AppDependencies>.value(value: _deps),
+        ChangeNotifierProvider<AuthProvider>.value(value: _authProvider),
+      ],
+      child: MaterialApp.router(
+        title: 'HealthMate',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeMode.system,
+        routerConfig: _router,
       ),
     );
   }
