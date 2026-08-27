@@ -7,11 +7,13 @@ import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/privacy/redaction_outcome.dart';
 import '../../core/utils/formatters.dart';
 import '../../models/catalogue_test.dart';
 import '../../providers/capture_provider.dart';
 import '../../widgets/bilingual_summary.dart';
 import '../../widgets/status_pill.dart';
+import 'redaction_screen.dart';
 
 const _maxUploadBytes = 10 * 1024 * 1024;
 
@@ -33,6 +35,8 @@ class _CaptureScreenState extends State<CaptureScreen> {
 
   Future<void> _pickAndCrop(ImageSource source) async {
     final provider = context.read<CaptureProvider>();
+    String? croppedPath;
+
     try {
       final picked = await ImagePicker().pickImage(source: source, imageQuality: 90);
       if (picked == null) return;
@@ -50,10 +54,35 @@ class _CaptureScreenState extends State<CaptureScreen> {
           IOSUiSettings(title: 'Crop report'),
         ],
       );
-      if (cropped != null) provider.pickImage(cropped.path);
+      if (cropped == null) return;
+      provider.pickImage(cropped.path);
+      croppedPath = cropped.path;
     } catch (e) {
       if (mounted) _showSnack("Couldn't open the camera or photo library.");
+      return;
     }
+
+    // Outside the try: a failure inside redaction has its own error handling,
+    // and must not be reported as a camera problem.
+    if (mounted) await _openRedaction(croppedPath);
+  }
+
+  /// Every picked image goes through here before it can be uploaded — the
+  /// redaction screen is what produces the sanitized file the API sees.
+  Future<void> _openRedaction(String sourcePath) async {
+    final provider = context.read<CaptureProvider>();
+    final navigator = Navigator.of(context);
+    final outcome = await navigator.push<RedactionOutcome>(
+      MaterialPageRoute(
+        builder: (_) => RedactionScreen(sourceImagePath: sourcePath, catalogueNames: provider.catalogueNames),
+      ),
+    );
+    if (outcome != null) provider.applyRedaction(outcome);
+  }
+
+  Future<void> _reviewRedaction() async {
+    final source = context.read<CaptureProvider>().originalImagePath;
+    if (source != null) await _openRedaction(source);
   }
 
   void _showSnack(String message) {
@@ -78,16 +107,17 @@ class _CaptureScreenState extends State<CaptureScreen> {
             : null,
       ),
       body: provider.step == CaptureStep.input
-          ? _InputStep(onPickImage: _pickAndCrop)
+          ? _InputStep(onPickImage: _pickAndCrop, onReviewRedaction: _reviewRedaction)
           : _ReviewStep(onSave: _save),
     );
   }
 }
 
 class _InputStep extends StatelessWidget {
-  const _InputStep({required this.onPickImage});
+  const _InputStep({required this.onPickImage, required this.onReviewRedaction});
 
   final Future<void> Function(ImageSource source) onPickImage;
+  final Future<void> Function() onReviewRedaction;
 
   @override
   Widget build(BuildContext context) {
@@ -109,16 +139,20 @@ class _InputStep extends StatelessWidget {
           _ErrorBanner(message: provider.error!),
           const SizedBox(height: 16),
         ],
-        if (provider.mode == CaptureMode.scan) _ScanInput(onPickImage: onPickImage) else const _ManualInput(),
+        if (provider.mode == CaptureMode.scan)
+          _ScanInput(onPickImage: onPickImage, onReviewRedaction: onReviewRedaction)
+        else
+          const _ManualInput(),
       ],
     );
   }
 }
 
 class _ScanInput extends StatelessWidget {
-  const _ScanInput({required this.onPickImage});
+  const _ScanInput({required this.onPickImage, required this.onReviewRedaction});
 
   final Future<void> Function(ImageSource source) onPickImage;
+  final Future<void> Function() onReviewRedaction;
 
   @override
   Widget build(BuildContext context) {
@@ -130,12 +164,20 @@ class _ScanInput extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            if (provider.imagePath != null) ...[
+            if (provider.hasImage) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(File(provider.imagePath!), height: 220, fit: BoxFit.contain),
+                // The redacted copy once it exists — what you see here is
+                // exactly what gets uploaded.
+                child: Image.file(
+                  File(provider.sanitizedImagePath ?? provider.originalImagePath!),
+                  height: 220,
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(height: 12),
+              _PrivacyStatus(onReviewRedaction: onReviewRedaction),
+              const SizedBox(height: 4),
               TextButton(onPressed: provider.clearImage, child: const Text('Choose a different image')),
             ] else ...[
               Container(
@@ -153,6 +195,15 @@ class _ScanInput extends StatelessWidget {
                     const Text('Choose a report image'),
                     const SizedBox(height: 4),
                     Text('JPEG, PNG or WebP, up to 10 MB', style: Theme.of(context).textTheme.bodySmall),
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'Personal details are blacked out on your phone before anything is uploaded.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -179,7 +230,7 @@ class _ScanInput extends StatelessWidget {
             ],
             const SizedBox(height: 20),
             FilledButton.icon(
-              onPressed: provider.imagePath == null || provider.busy == 'extract' ? null : provider.extract,
+              onPressed: !provider.isSanitized || provider.busy == 'extract' ? null : provider.extract,
               icon: provider.busy == 'extract'
                   ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.auto_awesome),
@@ -188,6 +239,49 @@ class _ScanInput extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Tells the user what happened to their image before it left the phone, and
+/// gives them a way back into the redaction screen.
+class _PrivacyStatus extends StatelessWidget {
+  const _PrivacyStatus({required this.onReviewRedaction});
+
+  final Future<void> Function() onReviewRedaction;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<CaptureProvider>();
+    final colorScheme = Theme.of(context).colorScheme;
+    final sanitized = provider.isSanitized;
+    final count = provider.hiddenCount;
+
+    final background = sanitized ? colorScheme.secondaryContainer : colorScheme.tertiaryContainer;
+    final foreground = sanitized ? colorScheme.onSecondaryContainer : colorScheme.onTertiaryContainer;
+
+    final message = !sanitized
+        ? 'Not reviewed yet — check for personal details before uploading.'
+        : count == 0
+        ? 'Nothing hidden. Location data was still removed.'
+        : '$count ${count == 1 ? 'area' : 'areas'} will be blacked out before upload.';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(12)),
+      child: Row(
+        children: [
+          Icon(sanitized ? Icons.shield_outlined : Icons.warning_amber_outlined, size: 18, color: foreground),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(message, style: TextStyle(color: foreground, fontSize: 13)),
+          ),
+          TextButton(
+            onPressed: () => onReviewRedaction(),
+            child: Text(sanitized ? 'Review' : 'Review now'),
+          ),
+        ],
       ),
     );
   }
@@ -367,11 +461,16 @@ class _ReviewStepState extends State<_ReviewStep> {
               ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
               : const Text('Save report'),
         ),
-        if (provider.mode == CaptureMode.scan && provider.imagePath != null) ...[
+        if (provider.mode == CaptureMode.scan && provider.sanitizedImagePath != null) ...[
           const SizedBox(height: 24),
+          Text(
+            'This is the version that was uploaded and will be stored with the report.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 8),
           Card(
             clipBehavior: Clip.antiAlias,
-            child: Image.file(File(provider.imagePath!), fit: BoxFit.contain),
+            child: Image.file(File(provider.sanitizedImagePath!), fit: BoxFit.contain),
           ),
         ],
         if (provider.mode == CaptureMode.scan) ...[
@@ -494,6 +593,12 @@ class _AnalysisCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
+            // The image is redacted, but anything typed here is sent verbatim.
+            Text(
+              'Questions you type are sent as they are — avoid typing names or ID numbers.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(

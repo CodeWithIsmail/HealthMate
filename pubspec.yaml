@@ -40,6 +40,12 @@ dependencies:
   flutter_markdown_plus: ^1.0.12
   image_picker: ^1.2.3
   image_cropper: ^12.2.1
+  # On-device (fully offline) text recognition + pixel editing, used to black
+  # out personal details before a report image is ever uploaded — see
+  # lib/core/privacy/.
+  google_mlkit_text_recognition: ^0.17.1
+  image: ^4.9.2
+  path_provider: ^2.1.6
   fl_chart: ^1.2.0
   qr_flutter: ^4.1.0
   mobile_scanner: ^7.4.0
@@ -58,6 +64,25 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  # Build-time only: regenerates the launcher icons from assets/icon/.
+  # Run `dart run flutter_launcher_icons` after changing those sources.
+  flutter_launcher_icons: ^0.14.4
+
+# Launcher icon generation. The two sources differ only in padding:
+# `app_icon.png` is the full-bleed white-backed version used for legacy
+# Android mipmaps and iOS, while `app_icon_foreground.png` keeps the artwork
+# inside the central 66% that Android adaptive masks never clip.
+# `app_icon_source.png` is the untouched original; `tool/make_icons.py`
+# regenerates the pair from it.
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  # iOS rejects icons with an alpha channel.
+  remove_alpha_ios: true
+  min_sdk_android: 21
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -70,10 +95,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  # Runtime assets only. `assets/icon/` is deliberately absent — those are
+  # build-time sources for flutter_launcher_icons and would just add weight to
+  # the APK.
+  assets:
+    - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

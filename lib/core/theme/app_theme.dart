@@ -36,17 +36,41 @@ class AppTheme {
         color: colorScheme.surfaceContainerLow,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
+      // Fields carry a visible edge. The previous borderless fill was
+      // `surfaceContainerLow` on a `surface` scaffold — two near-identical
+      // near-whites, so an input was only findable by its label.
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: colorScheme.surfaceContainerLow,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
+        fillColor: colorScheme.surfaceContainerLowest,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: _fieldBorder(colorScheme.outlineVariant),
+        enabledBorder: _fieldBorder(colorScheme.outlineVariant),
+        focusedBorder: _fieldBorder(colorScheme.primary, width: 2),
+        errorBorder: _fieldBorder(colorScheme.error),
+        focusedErrorBorder: _fieldBorder(colorScheme.error, width: 2),
+        prefixIconColor: colorScheme.onSurfaceVariant,
+        suffixIconColor: colorScheme.onSurfaceVariant,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      // One comfortable tap target for the primary/secondary actions, instead
+      // of each screen setting its own `minimumSize`.
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 52),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 52),
+          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          side: BorderSide(color: colorScheme.outlineVariant),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
@@ -60,4 +84,9 @@ class AppTheme {
       ),
     );
   }
+
+  static OutlineInputBorder _fieldBorder(Color color, {double width = 1}) => OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: color, width: width),
+  );
 }

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/api/api_exception.dart';
+import '../core/privacy/pii_patterns.dart';
+import '../core/privacy/redaction_outcome.dart';
 import '../models/catalogue_test.dart';
 import '../models/extraction.dart';
 import '../models/report.dart';
@@ -47,7 +49,19 @@ class CaptureProvider extends ChangeNotifier {
   CaptureMode mode = CaptureMode.scan;
   CaptureStep step = CaptureStep.input;
 
-  String? imagePath;
+  /// The photo as picked and cropped. Stays on the device — it is shown
+  /// nowhere and uploaded nowhere; only [sanitizedImagePath] leaves the phone.
+  String? originalImagePath;
+
+  /// The redacted copy produced by `RedactionScreen`. **The only image path
+  /// that may be sent to the API.** Null until the user has confirmed the
+  /// redaction, which is what keeps an unscanned original from being uploaded.
+  String? sanitizedImagePath;
+
+  /// How many regions were hidden, per category — drives the "N items hidden"
+  /// badge on the capture screen.
+  Map<PiiCategory, int> redactionSummary = const {};
+
   DateTime reportDate = DateTime.now();
   String title = '';
   List<CaptureRow> rows = [];
@@ -70,6 +84,17 @@ class CaptureProvider extends ChangeNotifier {
 
   bool get isStub => extractionProvider == 'stub';
 
+  bool get hasImage => originalImagePath != null;
+
+  /// True once the picked image has been through the redaction step.
+  bool get isSanitized => sanitizedImagePath != null;
+
+  int get hiddenCount => redactionSummary.values.fold(0, (sum, count) => sum + count);
+
+  /// Canonical test names handed to the PII detector so it never blacks out a
+  /// result row (see `PiiDetector`).
+  List<String> get catalogueNames => catalogue.map((test) => test.name).toList();
+
   Future<void> loadCatalogue() async {
     catalogueLoading = true;
     notifyListeners();
@@ -89,22 +114,42 @@ class CaptureProvider extends ChangeNotifier {
   }
 
   void pickImage(String path) {
-    imagePath = path;
+    originalImagePath = path;
+    sanitizedImagePath = null;
+    redactionSummary = const {};
+    notifyListeners();
+  }
+
+  /// Called by `RedactionScreen` once the user has confirmed what to hide.
+  void applyRedaction(RedactionOutcome outcome) {
+    sanitizedImagePath = outcome.imagePath;
+    redactionSummary = outcome.hiddenByCategory;
+    error = null;
     notifyListeners();
   }
 
   void clearImage() {
-    imagePath = null;
+    originalImagePath = null;
+    sanitizedImagePath = null;
+    redactionSummary = const {};
     notifyListeners();
   }
 
   Future<void> extract() async {
-    if (imagePath == null) return;
+    final path = sanitizedImagePath;
+    if (path == null) {
+      // Belt and braces: the button is disabled until redaction is confirmed,
+      // and this makes it impossible for a later refactor to upload the
+      // untouched original by accident.
+      error = 'Hide any personal details on the image before extracting.';
+      notifyListeners();
+      return;
+    }
     busy = 'extract';
     error = null;
     notifyListeners();
     try {
-      final res = await _reportRepo.extract(imagePath!);
+      final res = await _reportRepo.extract(path);
       uploadedImageUrl = res.imageUrl;
       extractionProvider = res.provider;
       degradedReason = res.degradedReason;
@@ -133,11 +178,12 @@ class CaptureProvider extends ChangeNotifier {
   }
 
   Future<void> _analyze() async {
-    if (imagePath == null) return;
+    final path = sanitizedImagePath;
+    if (path == null) return;
     busy = 'analyze';
     notifyListeners();
     try {
-      final res = await _reportRepo.analyze(imagePath!);
+      final res = await _reportRepo.analyze(path);
       analysisEn = res.textEn;
       analysisBn = res.textBn;
       analysisProvider = res.provider;
