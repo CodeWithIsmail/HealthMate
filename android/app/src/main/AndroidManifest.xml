@@ -3,7 +3,7 @@
     <!-- Camera capture for report scanning (image_picker's ImageSource.camera). -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <application
-        android:label="healthmate"
+        android:label="HealthMate"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
