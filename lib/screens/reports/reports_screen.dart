@@ -109,7 +109,8 @@ class _Body extends StatelessWidget {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      // Clearance for the FAB and the nav bar.
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
       itemCount: provider.reports.length,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {

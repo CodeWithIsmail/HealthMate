@@ -9,11 +9,11 @@ import 'package:provider/provider.dart';
 
 import '../../core/privacy/redaction_outcome.dart';
 import '../../core/utils/formatters.dart';
-import '../../models/catalogue_test.dart';
 import '../../providers/capture_provider.dart';
 import '../../widgets/bilingual_summary.dart';
-import '../../widgets/status_pill.dart';
 import 'redaction_screen.dart';
+import 'test_picker_sheet.dart';
+import 'value_row.dart';
 
 const _maxUploadBytes = 10 * 1024 * 1024;
 
@@ -98,17 +98,22 @@ class _CaptureScreenState extends State<CaptureScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<CaptureProvider>();
+    final isReview = provider.step == CaptureStep.review;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(provider.step == CaptureStep.input ? 'Add a report' : 'Review and save'),
-        leading: provider.step == CaptureStep.review
+        title: Text(isReview ? 'Review and save' : 'Add a report'),
+        leading: isReview
             ? IconButton(icon: const Icon(Icons.arrow_back), onPressed: provider.backToInput)
             : null,
       ),
-      body: provider.step == CaptureStep.input
-          ? _InputStep(onPickImage: _pickAndCrop, onReviewRedaction: _reviewRedaction)
-          : _ReviewStep(onSave: _save),
+      body: isReview
+          ? _ReviewStep(onSave: _save)
+          : _InputStep(onPickImage: _pickAndCrop, onReviewRedaction: _reviewRedaction),
+      // Pinned rather than sitting at the end of the list: a scanned report can
+      // run to 25 rows, and saving should not require scrolling past all of
+      // them first.
+      bottomNavigationBar: isReview ? _SaveBar(onSave: _save) : null,
     );
   }
 }
@@ -290,6 +295,16 @@ class _PrivacyStatus extends StatelessWidget {
 class _ManualInput extends StatelessWidget {
   const _ManualInput();
 
+  Future<void> _addTest(BuildContext context) async {
+    final provider = context.read<CaptureProvider>();
+    final id = await showTestPickerSheet(
+      context: context,
+      catalogue: provider.catalogue,
+      excludedIds: provider.rows.map((row) => row.testId).toSet(),
+    );
+    if (id != null) provider.addRow(id);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<CaptureProvider>();
@@ -303,10 +318,30 @@ class _ManualInput extends StatelessWidget {
             const Text('Pick the tests you want to record. You can add as many as you need.'),
             const SizedBox(height: 16),
             if (provider.catalogueLoading)
-              const Center(child: CircularProgressIndicator())
+              const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()))
             else
-              _TestPicker(catalogue: provider.catalogue, rows: provider.rows, onSelect: provider.addRow),
+              OutlinedButton.icon(
+                onPressed: provider.catalogue.isEmpty ? null : () => _addTest(context),
+                icon: const Icon(Icons.add),
+                label: const Text('Add a test'),
+                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+              ),
             if (provider.rows.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              // Show what has been picked so far — previously the chosen tests
+              // stayed invisible until the review step.
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: provider.rows
+                    .map(
+                      (row) => InputChip(
+                        label: Text(row.name),
+                        onDeleted: () => provider.removeRow(row.testId),
+                      ),
+                    )
+                    .toList(),
+              ),
               const SizedBox(height: 20),
               FilledButton(
                 onPressed: provider.goToReview,
@@ -317,35 +352,6 @@ class _ManualInput extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _TestPicker extends StatelessWidget {
-  const _TestPicker({required this.catalogue, required this.rows, required this.onSelect});
-
-  final List<CatalogueTest> catalogue;
-  final List<CaptureRow> rows;
-  final ValueChanged<String> onSelect;
-
-  @override
-  Widget build(BuildContext context) {
-    final available = catalogue.where((c) => !rows.any((r) => r.testId == c.id)).toList();
-    return DropdownButtonFormField<String>(
-      key: ValueKey(rows.length),
-      initialValue: null,
-      decoration: const InputDecoration(labelText: 'Add a test'),
-      items: available
-          .map(
-            (t) => DropdownMenuItem(
-              value: t.id,
-              child: Text(t.unit != null ? '${t.name} (${t.unit})' : t.name, overflow: TextOverflow.ellipsis),
-            ),
-          )
-          .toList(),
-      onChanged: (id) {
-        if (id != null) onSelect(id);
-      },
     );
   }
 }
@@ -369,12 +375,51 @@ class _ReviewStepState extends State<_ReviewStep> {
     super.dispose();
   }
 
+  Future<void> _pickDate() async {
+    final provider = context.read<CaptureProvider>();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: provider.reportDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) provider.setReportDate(picked);
+  }
+
+  Future<void> _addTest() async {
+    final provider = context.read<CaptureProvider>();
+    final id = await showTestPickerSheet(
+      context: context,
+      catalogue: provider.catalogue,
+      excludedIds: provider.rows.map((row) => row.testId).toSet(),
+    );
+    if (id != null) provider.addRow(id);
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<CaptureProvider>();
+    final theme = Theme.of(context);
+
+    final rowWidgets = <Widget>[];
+    for (final row in provider.rows) {
+      if (rowWidgets.isNotEmpty) {
+        rowWidgets.add(const Divider(height: 1, indent: 16, endIndent: 16));
+      }
+      rowWidgets.add(
+        CaptureValueRow(
+          key: ValueKey(row.testId),
+          row: row,
+          onChanged: (value) => provider.updateValue(row.testId, value),
+          onRemove: () => provider.removeRow(row.testId),
+        ),
+      );
+    }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      // 25 numeric fields means the keyboard is up a lot; let a drag dismiss it.
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       children: [
         if (provider.isStub) ...[
           _WarningBanner(
@@ -385,6 +430,10 @@ class _ReviewStepState extends State<_ReviewStep> {
           ),
           const SizedBox(height: 16),
         ],
+        if (provider.duplicateNote != null) ...[
+          _WarningBanner(title: 'One reading was merged', message: provider.duplicateNote!),
+          const SizedBox(height: 16),
+        ],
         if (provider.error != null) ...[
           _ErrorBanner(message: provider.error!),
           const SizedBox(height: 16),
@@ -392,29 +441,30 @@ class _ReviewStepState extends State<_ReviewStep> {
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: provider.reportDate,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime.now(),
-                      );
-                      if (picked != null) provider.setReportDate(picked);
-                    },
+                // Full width and stacked: side by side, the date and the title
+                // were both too narrow to read on a small phone.
+                InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: _pickDate,
+                  child: InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: 'Report date',
+                      prefixIcon: Icon(Icons.calendar_today_outlined),
+                    ),
                     child: Text(formatDate(provider.reportDate)),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _titleController,
-                    decoration: const InputDecoration(labelText: 'Title (optional)'),
-                    onChanged: provider.setTitle,
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _titleController,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Title (optional)',
+                    hintText: 'e.g. Annual check-up',
                   ),
+                  onChanged: provider.setTitle,
                 ),
               ],
             ),
@@ -425,47 +475,50 @@ class _ReviewStepState extends State<_ReviewStep> {
           child: Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
                 child: Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        '${provider.rows.length} tests · edit anything that looks wrong',
-                        style: Theme.of(context).textTheme.bodySmall,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${provider.rows.length} test${provider.rows.length == 1 ? '' : 's'}',
+                            style: theme.textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Edit anything that looks wrong.',
+                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ],
                       ),
                     ),
                     if (provider.catalogue.isNotEmpty)
-                      SizedBox(
-                        width: 140,
-                        child: _TestPicker(catalogue: provider.catalogue, rows: provider.rows, onSelect: provider.addRow),
+                      TextButton.icon(
+                        onPressed: _addTest,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Add a test'),
                       ),
                   ],
                 ),
               ),
               const Divider(height: 1),
-              if (provider.rows.isEmpty)
+              if (rowWidgets.isEmpty)
                 const Padding(
                   padding: EdgeInsets.all(24),
-                  child: Text('No values yet. Use "Add test" above to record one.'),
+                  child: Text('No values yet. Use "Add a test" above to record one.'),
                 )
               else
-                ...provider.rows.map((row) => _EditableValueRow(key: ValueKey(row.testId), row: row)),
+                ...rowWidgets,
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: provider.busy == 'save' ? null : widget.onSave,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
-          child: provider.busy == 'save'
-              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Text('Save report'),
         ),
         if (provider.mode == CaptureMode.scan && provider.sanitizedImagePath != null) ...[
           const SizedBox(height: 24),
           Text(
             'This is the version that was uploaded and will be stored with the report.',
-            style: Theme.of(context).textTheme.bodySmall,
+            style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
           Card(
@@ -482,67 +535,41 @@ class _ReviewStepState extends State<_ReviewStep> {
   }
 }
 
-class _EditableValueRow extends StatefulWidget {
-  const _EditableValueRow({super.key, required this.row});
-  final CaptureRow row;
+/// The review step's save action, pinned above the system navigation.
+class _SaveBar extends StatelessWidget {
+  const _SaveBar({required this.onSave});
 
-  @override
-  State<_EditableValueRow> createState() => _EditableValueRowState();
-}
-
-class _EditableValueRowState extends State<_EditableValueRow> {
-  late final TextEditingController _controller = TextEditingController(text: widget.row.valueText);
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final Future<void> Function() onSave;
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.read<CaptureProvider>();
-    final row = widget.row;
-    final parsed = double.tryParse(row.valueText.trim());
-    final status = parsed == null ? RangeStatus.unknown : rangeStatus(parsed, row.refLow, row.refHigh);
+    final provider = context.watch<CaptureProvider>();
+    final theme = Theme.of(context);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(row.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                Text(
-                  row.refLow != null && row.refHigh != null
-                      ? 'Reference ${formatValue(row.refLow!)} – ${formatValue(row.refHigh!)}'
-                      : 'No reference range',
-                  style: Theme.of(context).textTheme.bodySmall,
+    return Material(
+      color: theme.colorScheme.surfaceContainerLow,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '${provider.rows.length} test${provider.rows.length == 1 ? '' : 's'} on this report',
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 12),
+              FilledButton(
+                onPressed: provider.busy == 'save' ? null : onSave,
+                child: provider.busy == 'save'
+                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('Save report'),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          SizedBox(
-            width: 84,
-            child: TextField(
-              controller: _controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              textAlign: TextAlign.right,
-              decoration: InputDecoration(isDense: true, suffixText: row.unit),
-              onChanged: (v) => provider.updateValue(row.testId, v),
-            ),
-          ),
-          const SizedBox(width: 8),
-          StatusPill(status: status),
-          IconButton(
-            icon: const Icon(Icons.close, size: 18),
-            onPressed: () => provider.removeRow(row.testId),
-          ),
-        ],
+        ),
       ),
     );
   }

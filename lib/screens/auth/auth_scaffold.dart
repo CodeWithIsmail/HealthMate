@@ -226,26 +226,6 @@ class AuthErrorBanner extends StatelessWidget {
   }
 }
 
-/// Reassurance under the primary button while a request is in flight. The API
-/// is on a free tier that cold-starts, so the first sign-in of the day can sit
-/// for several seconds — saying so is better than looking hung.
-class AuthPendingHint extends StatelessWidget {
-  const AuthPendingHint({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(top: 14),
-      child: Text(
-        'Waking the server — this can take a few seconds the first time.',
-        textAlign: TextAlign.center,
-        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-      ),
-    );
-  }
-}
-
 /// A labelled divider between the primary action and the alternative one.
 class AuthDivider extends StatelessWidget {
   const AuthDivider({super.key, required this.label});

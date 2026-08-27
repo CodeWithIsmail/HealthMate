@@ -161,7 +161,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Text('Create account'),
                 ),
-                if (auth.busy) const AuthPendingHint(),
               ],
             ),
           ),

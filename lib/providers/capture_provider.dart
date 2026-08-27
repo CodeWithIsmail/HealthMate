@@ -70,6 +70,11 @@ class CaptureProvider extends ChangeNotifier {
   String? extractionProvider; // 'gemini' | 'stub'
   String? degradedReason;
 
+  /// Set when the extraction returned two readings for the same catalogue
+  /// test and the later one had to be dropped — see [rowsFromExtraction].
+  /// Shown on the review step so the loss is never silent.
+  String? duplicateNote;
+
   String? analysisEn;
   String? analysisBn;
   String? analysisProvider;
@@ -153,19 +158,13 @@ class CaptureProvider extends ChangeNotifier {
       uploadedImageUrl = res.imageUrl;
       extractionProvider = res.provider;
       degradedReason = res.degradedReason;
-      rows = res.values
-          .map(
-            (v) => CaptureRow(
-              testId: v.testId,
-              name: v.canonicalName,
-              unit: v.unit,
-              valueText: _trimTrailingZeros(v.value),
-              refLow: v.refLow,
-              refHigh: v.refHigh,
-              matchedBy: v.matchedBy,
-            ),
-          )
-          .toList();
+      final (extracted, dropped) = rowsFromExtraction(res.values);
+      rows = extracted;
+      duplicateNote = dropped.isEmpty
+          ? null
+          : 'Two lines in your report were read as the same test '
+                '(${dropped.toSet().join(', ')}). Only the first reading of each was kept — '
+                'check it against the image below.';
       step = CaptureStep.review;
       busy = null;
       notifyListeners();
@@ -231,11 +230,14 @@ class CaptureProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Deliberately does **not** notify. Only the edited row reacts to a
+  /// keystroke (its own status pill), and it rebuilds itself; notifying here
+  /// rebuilt all ~25 rows of a scanned report on every character typed.
+  /// [save] reads `valueText` directly, and add/remove still notify.
   void updateValue(String testId, String value) {
     for (final row in rows) {
       if (row.testId == testId) row.valueText = value;
     }
-    notifyListeners();
   }
 
   void setTitle(String value) {
@@ -290,6 +292,44 @@ class CaptureProvider extends ChangeNotifier {
       busy = null;
       notifyListeners();
     }
+  }
+
+  /// Extraction rows, with any repeated `testId` dropped.
+  ///
+  /// A lab report can print the same measurement under two names ("HCT" and
+  /// "PCV", "SGPT" and "ALT"), and the API's catalogue matching resolves both
+  /// to one canonical test. Two rows sharing a `testId` cannot work here:
+  /// [updateValue] and [removeRow] address rows *by* `testId`, so editing one
+  /// would edit both and deleting one would delete both, and the save payload
+  /// carries a single value per test regardless. The duplicate is therefore
+  /// dropped at the point it arrives — and reported, via [duplicateNote],
+  /// rather than disappearing quietly.
+  ///
+  /// Returns the rows to show and the canonical names that were dropped.
+  static (List<CaptureRow>, List<String>) rowsFromExtraction(List<ExtractedValue> values) {
+    final seen = <String>{};
+    final kept = <CaptureRow>[];
+    final dropped = <String>[];
+
+    for (final v in values) {
+      if (!seen.add(v.testId)) {
+        dropped.add(v.canonicalName);
+        continue;
+      }
+      kept.add(
+        CaptureRow(
+          testId: v.testId,
+          name: v.canonicalName,
+          unit: v.unit,
+          valueText: _trimTrailingZeros(v.value),
+          refLow: v.refLow,
+          refHigh: v.refHigh,
+          matchedBy: v.matchedBy,
+        ),
+      );
+    }
+
+    return (kept, dropped);
   }
 
   static String _trimTrailingZeros(double value) {

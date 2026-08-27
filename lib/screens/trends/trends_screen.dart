@@ -78,7 +78,7 @@ class _Body extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: provider.loadSeries,
       child: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
           DropdownButtonFormField<String>(
             initialValue: provider.selectedTestId,
@@ -107,8 +107,19 @@ class _Body extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
                       children: [
-                        Text(provider.series!.test.name, style: Theme.of(context).textTheme.titleMedium),
+                        // Flexible: a long canonical test name in a bare Row
+                        // overflowed the card.
+                        Flexible(
+                          child: Text(
+                            provider.series!.test.name,
+                            style: Theme.of(context).textTheme.titleMedium,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         if (provider.series!.test.unit != null) ...[
                           const SizedBox(width: 6),
                           Text(

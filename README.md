@@ -44,9 +44,9 @@ with `flutter_secure_storage`.
 
 The API sits behind Render's free tier, which cold-starts after inactivity — the
 API client retries transient failures (connection errors, 502/503/504/520) with
-backoff, and gives a lone request up to ~40s before giving up. The auth screens
-say so explicitly while a request is in flight, because a silent spinner for
-eight seconds reads as a hang.
+backoff, and gives a lone request up to ~40s before giving up. The auth buttons
+show a spinner for the duration; the cold start is an operational detail and is
+deliberately not narrated to the user.
 
 ### Test accounts (seeded on the API)
 
@@ -78,6 +78,9 @@ on a device and checking light/dark, a narrow width, and a failure path.
 | `test/core/api/api_client_test.dart` | Error flattening, retry/backoff, `onUnauthorized` firing only for token failures |
 | `test/core/utils/formatters_test.dart` | Range status and value/date formatting |
 | `test/screens/auth/auth_screens_test.dart` | Login/signup layout at 400×800 and 320×560, validation, password strength labelling |
+| `test/screens/capture/value_row_test.dart` | The "Review and save" test row: long names and long units (`cells/uL`, `mm in 1st hr`) at 320dp and at 1.6× font, the "Not entered" state, one-sided reference ranges |
+| `test/widgets/stat_card_test.dart` | Dashboard stat tiles at a narrow grid cell and at 1.5× font |
+| `test/providers/capture_rows_test.dart` | Extraction rows are deduplicated by `testId`, first reading wins |
 
 The PII detector is deliberately pure Dart over plain data types rather than ML
 Kit's classes, so its rules are testable with synthetic report layouts — no
@@ -171,6 +174,11 @@ app.
   values are fabricated placeholders. That flag is threaded through the whole
   capture flow and shown as a prominent warning — never let a stub reading be
   mistaken for a real one.
+- `POST /reports/extract` can return **two values with the same `testId`** — a
+  report printing both "HCT" and "PCV" has each matched to one canonical test.
+  `CaptureProvider.rowsFromExtraction` drops the repeat and reports it, because
+  rows are keyed by `testId` and `updateValue`/`removeRow` address rows by it:
+  duplicates crashed the review screen and would have edited each other.
 - The QR code encodes `healthmate:user/{username}` (matching the web app's
   scheme), not a bare username — the People screen's scanner parses both that
   scheme and a bare username for robustness.
@@ -187,6 +195,15 @@ is never shown by colour alone — it always carries a text label
 (`widgets/status_pill.dart`), and every chart is paired with a data table below
 it. The same rule governs the signup password meter, which labels itself *Weak /
 Fair / Strong* rather than relying on the bar colour.
+
+Anything whose length comes from data — a test name, a unit, a relative date, a
+nav label — is treated as unbounded. The "Review and save" row gives the test
+name a full line of its own and puts the unit *beside* the input rather than
+inside it as a `suffixText`: sharing one 84dp box between a number and
+`cells/uL` left no room for the number, so the value the user was being asked to
+confirm was invisible. Dashboard tiles derive their height from the width and
+the system font scale instead of a fixed aspect ratio, and the bottom-nav labels
+are capped at 1.2× scaling so five destinations cannot reflow the bar.
 
 Form fields carry a visible outline (`outlineVariant`, thickening to `primary`
 on focus) over a `surfaceContainerLowest` fill. An earlier borderless variant

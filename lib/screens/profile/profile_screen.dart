@@ -62,7 +62,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : RefreshIndicator(
               onRefresh: () => provider.load(username: widget.username),
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                 children: [
                   _Header(profile: profile),
                   const SizedBox(height: 16),

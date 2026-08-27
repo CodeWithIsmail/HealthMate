@@ -15,6 +15,7 @@ import '../../providers/auth_provider.dart';
 import '../../repositories/news_repository.dart';
 import '../../widgets/error_view.dart';
 import '../../widgets/loading_view.dart';
+import '../../widgets/stat_card.dart';
 
 class _DashboardData {
   const _DashboardData({
@@ -96,11 +97,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              // Bottom clearance for the FAB and the nav bar, which otherwise
+              // sit on top of the last recent report.
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
               children: [
                 Text(
                   'Hello, ${data.profile.firstName ?? data.profile.username}',
                   style: Theme.of(context).textTheme.headlineSmall,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -157,52 +162,36 @@ class _StatsGrid extends StatelessWidget {
       (Icons.show_chart, 'Values tracked', '${profile.stats.valueCount}', '/trends'),
       (Icons.people_outline, 'People with access', '$viewerCount', '/connections'),
       (
-        Icons.add_circle_outline,
+        // Not an "add" icon: this tile navigates to the report list.
+        Icons.event_available_outlined,
         'Last report',
         profile.stats.lastReportDate != null ? relativeDate(profile.stats.lastReportDate!) : '—',
         '/reports',
       ),
     ];
 
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      childAspectRatio: 1.6,
-      children: stats.map((s) {
-        final (icon, label, value, route) = s;
-        return Card(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(16),
-            onTap: () => context.go(route),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          label,
-                          style: Theme.of(context).textTheme.bodySmall,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Icon(icon, size: 18, color: Theme.of(context).colorScheme.primary),
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(value, style: Theme.of(context).textTheme.headlineSmall),
-                ],
-              ),
-            ),
-          ),
+    // A fixed aspect ratio clipped the taller tiles ("22 days ago" fell out of
+    // the card). Derive the cell height from the real width and the user's font
+    // scale instead.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cellWidth = (constraints.maxWidth - 12) / 2;
+        final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+        final cellHeight = 104 * textScale.clamp(1.0, 1.5);
+
+        return GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: cellWidth / cellHeight,
+          children: stats.map((s) {
+            final (icon, label, value, route) = s;
+            return StatCard(icon: icon, label: label, value: value, onTap: () => context.go(route));
+          }).toList(),
         );
-      }).toList(),
+      },
     );
   }
 }
