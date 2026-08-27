@@ -28,6 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
     final ok = await auth.login(identifier: _identifierController.text.trim(), password: _passwordController.text);
@@ -37,33 +38,18 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final theme = Theme.of(context);
 
     return AuthScaffold(
       title: 'Welcome back',
       subtitle: 'Sign in to see your reports and trends.',
       footer: Column(
         children: [
-          Row(
-            children: [
-              Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text(
-                  'New to HealthMate?',
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                ),
-              ),
-              Expanded(child: Divider(color: theme.colorScheme.outlineVariant)),
-            ],
-          ),
+          const AuthDivider(label: 'New here?'),
           const SizedBox(height: 16),
           OutlinedButton(
             onPressed: auth.busy ? null : () => context.go('/signup'),
             child: const Text('Create an account'),
           ),
-          const SizedBox(height: 24),
-          const _PrivacyNote(),
         ],
       ),
       children: [
@@ -90,7 +76,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator: (v) => (v == null || v.trim().length < 3) ? 'Enter your username or email' : null,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 TextFormField(
                   controller: _passwordController,
                   focusNode: _passwordFocus,
@@ -109,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator: (v) => (v == null || v.isEmpty) ? 'Password is required' : null,
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
                 FilledButton(
                   onPressed: auth.busy ? null : _submit,
                   child: auth.busy
@@ -119,30 +105,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (auth.busy) const AuthPendingHint(),
               ],
             ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// The one thing about this app worth saying on the way in.
-class _PrivacyNote extends StatelessWidget {
-  const _PrivacyNote();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.shield_outlined, size: 16, color: theme.colorScheme.onSurfaceVariant),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            'Personal details are removed from your reports on this phone, before anything is uploaded.',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.4),
           ),
         ),
       ],

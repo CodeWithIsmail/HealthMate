@@ -11,6 +11,16 @@ class AppTheme {
   static ThemeData light = _build(Brightness.light);
   static ThemeData dark = _build(Brightness.dark);
 
+  /// Brand surface used by the splash and the auth hero. Deliberately fixed
+  /// rather than derived from the colour scheme: a brand does not change colour
+  /// with the system theme, and the launch → sign-in sequence has to look like
+  /// one continuous surface.
+  static const brandGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF1E9E72), Color(0xFF17805B), Color(0xFF0D5C43)],
+  );
+
   static ThemeData _build(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
     final colorScheme = ColorScheme.fromSeed(

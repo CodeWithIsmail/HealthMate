@@ -193,6 +193,13 @@ on focus) over a `surfaceContainerLowest` fill. An earlier borderless variant
 put a `surfaceContainerLow` fill on a `surface` background — two near-identical
 near-whites — which left inputs findable only by their floating label.
 
+The splash and the auth screens share one brand surface, `AppTheme.brandGradient`
+— a fixed green gradient that does **not** follow the system theme, so launching
+into sign-in reads as one continuous surface instead of a white flash followed by
+a coloured header. On the auth screens the gradient is a hero holding the logo
+and wordmark, with the form on a rounded sheet below it; the hero shrinks while
+the keyboard is open so a small phone still shows the whole form.
+
 ### Branding
 
 The launcher icon and the in-app brand mark come from one source image,
@@ -224,4 +231,5 @@ first if the old one persists.
 | Old launcher icon after an update | Launcher icon cache; reinstall, or restart the launcher |
 | "Values were not read from your image" | The API's Gemini quota is exhausted and it fell back to `StubProvider`; the numbers shown are placeholders |
 | Sign-in hangs for several seconds | Render free-tier cold start — expected on the first request after inactivity |
+| `:app:minifyReleaseWithR8` fails on `Missing class com.google.mlkit.vision.text.*` | R8 resolving ML Kit's optional script recognisers, which we don't bundle. `android/app/proguard-rules.pro` suppresses them — don't delete it. Debug builds skip R8, so this only ever appears on `--release` |
 | Redaction misses a name | Usually a layout the detector can't associate, or Bangla-script text (ML Kit reads Latin only). See `docs/privacy-redaction.md` |

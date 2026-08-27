@@ -42,6 +42,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _submit() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
     final auth = context.read<AuthProvider>();
     final ok = await auth.signup(
@@ -59,7 +60,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
     return AuthScaffold(
       title: 'Create your account',
-      subtitle: 'Track your lab results over time, in one place.',
+      subtitle: 'Takes a minute. All you need is an email.',
       onBack: () => context.go('/login'),
       // Wrap, not Row: the prompt and the action have to reflow onto two lines
       // on a narrow screen or at a large system font scale.
@@ -106,7 +107,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 TextFormField(
                   controller: _usernameController,
                   focusNode: _usernameFocus,
@@ -129,7 +130,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 18),
                 TextFormField(
                   controller: _passwordController,
                   focusNode: _passwordFocus,
@@ -153,7 +154,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   },
                 ),
                 _PasswordStrength(password: _passwordController.text),
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
                 FilledButton(
                   onPressed: auth.busy ? null : _submit,
                   child: auth.busy
