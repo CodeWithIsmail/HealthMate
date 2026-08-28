@@ -11,7 +11,6 @@ import '../../models/connections.dart';
 import '../../models/news_article.dart';
 import '../../models/report.dart';
 import '../../models/user_profile.dart';
-import '../../providers/auth_provider.dart';
 import '../../repositories/news_repository.dart';
 import '../../widgets/error_view.dart';
 import '../../widgets/loading_view.dart';
@@ -71,16 +70,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('HealthMate'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Log out',
-            onPressed: () => context.read<AuthProvider>().logout(),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('HealthMate')),
       body: FutureBuilder<_DashboardData>(
         future: _future,
         builder: (context, snapshot) {

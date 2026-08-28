@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/utils/formatters.dart';
 import '../../models/user_profile.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/profile_provider.dart';
 import '../../widgets/app_avatar.dart';
 import '../../widgets/error_view.dart';
@@ -50,6 +51,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     if (context.mounted) context.read<ProfileProvider>().load();
                   },
                 ),
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  tooltip: 'Log out',
+                  onPressed: () => _confirmLogout(context),
+                ),
               ]
             : null,
       ),
@@ -76,6 +82,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
     );
   }
+}
+
+Future<void> _confirmLogout(BuildContext context) async {
+  final authProvider = context.read<AuthProvider>();
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Log out?'),
+      content: const Text('You will need to sign in again to access your account.'),
+      actions: [
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Log out')),
+      ],
+    ),
+  );
+  if (confirmed == true) authProvider.logout();
 }
 
 int _detailCount(UserProfile p) {

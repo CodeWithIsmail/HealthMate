@@ -90,6 +90,26 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     }
   }
 
+  Future<void> _pickGender() async {
+    final selected = await showModalBottomSheet<Gender>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: RadioGroup<Gender>(
+          groupValue: _gender,
+          onChanged: (g) => Navigator.of(context).pop(g),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: Gender.values
+                .map((g) => RadioListTile<Gender>(title: Text(_genderLabels[g]!), value: g))
+                .toList(),
+          ),
+        ),
+      ),
+    );
+    if (selected != null) setState(() => _gender = selected);
+  }
+
   Future<void> _submit() async {
     final provider = context.read<ProfileProvider>();
     final height = double.tryParse(_heightController.text.trim());
@@ -204,13 +224,13 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 Row(
                   children: [
                     Expanded(
-                      child: DropdownButtonFormField<Gender>(
-                        initialValue: _gender,
-                        decoration: const InputDecoration(labelText: 'Gender'),
-                        items: Gender.values
-                            .map((g) => DropdownMenuItem(value: g, child: Text(_genderLabels[g]!)))
-                            .toList(),
-                        onChanged: (g) => setState(() => _gender = g ?? _gender),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(4),
+                        onTap: () => _pickGender(),
+                        child: InputDecorator(
+                          decoration: const InputDecoration(labelText: 'Gender'),
+                          child: Text(_genderLabels[_gender]!),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),

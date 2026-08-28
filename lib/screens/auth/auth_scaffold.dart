@@ -154,7 +154,7 @@ class _BrandHero extends StatelessWidget {
                     if (!compact) ...[
                       const SizedBox(height: 6),
                       Text(
-                        'Your lab reports, tracked over time',
+                        'Your health reports, tracked over time',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: Colors.white.withValues(alpha: 0.82),
                         ),
